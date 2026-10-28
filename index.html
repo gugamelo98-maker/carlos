@@ -1,7 +1,11 @@
 <title>Editor de Vídeo</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.7/dist/umd/ffmpeg.js"></script>
-<script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/util.js"></script>
+
+<!-- Habilita SharedArrayBuffer em qualquer host HTTPS (necessário para FFmpeg.wasm) -->
+<script src="https://unpkg.com/coi-serviceworker@0.1.9/coi-serviceworker.min.js"></script>
+<!-- FFmpeg.wasm v0.10 – API estável, sem dependências extras -->
+<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.10.1/dist/ffmpeg.min.js"></script>
+
 <style>
 :root{
   --bg:#f0eef8;--card:#fff;--border:#ddd8f0;--fg:#1a1830;--fg2:#666;
@@ -62,7 +66,6 @@ video{width:100%;border-radius:9px;background:#000;display:block;max-height:260p
 
 <h1>✂️ Editor de Vídeo</h1>
 
-<!-- LISTA DE CLIPES -->
 <div class="card">
   <div style="font-size:17px;font-weight:800;margin-bottom:12px;">
     🎬 Sequência
@@ -73,7 +76,6 @@ video{width:100%;border-radius:9px;background:#000;display:block;max-height:260p
   </div>
 </div>
 
-<!-- ADICIONAR -->
 <div class="card">
   <div style="font-size:17px;font-weight:800;margin-bottom:12px;">➕ Adicionar Vídeo</div>
   <div class="drop">
@@ -84,7 +86,6 @@ video{width:100%;border-radius:9px;background:#000;display:block;max-height:260p
   </div>
 </div>
 
-<!-- EXPORTAR -->
 <div class="card">
   <div style="font-size:17px;font-weight:800;margin-bottom:12px;">⬇️ Exportar</div>
   <div id="expAlert" class="hidden"></div>
@@ -94,7 +95,7 @@ video{width:100%;border-radius:9px;background:#000;display:block;max-height:260p
       <div class="prog-bg"><div class="prog-f" id="progF" style="width:0%"></div></div>
     </div>
   </div>
-  <button class="btn b-pri b-full b-xl" id="btnExp">✂️ Juntar e Baixar</button>
+  <button class="btn b-pri b-full b-xl" id="btnExp">✂️ Cortar e Juntar → Baixar</button>
   <div id="dlSection" class="hidden" style="margin-top:12px;">
     <button class="dl-btn" id="btnDl">⬇️ Baixar Vídeo Final (.mp4)</button>
   </div>
@@ -103,7 +104,7 @@ video{width:100%;border-radius:9px;background:#000;display:block;max-height:260p
 <script>
 // ── STATE ──────────────────────────────────────────────────
 var clips=[], openId=null, drag=null;
-var ffmpegInst=null, ffmpegReady=false;
+var ff=null, ffReady=false;
 
 // ── UPLOAD ─────────────────────────────────────────────────
 document.getElementById('fi').onchange=function(e){
@@ -114,8 +115,7 @@ function addClip(file){
   var id='_'+Date.now()+Math.random().toString(36).slice(2);
   clips.push({id:id,file:file,url:URL.createObjectURL(file),
     name:file.name.replace(/\.[^.]+$/,''),dur:0,in:0,out:0});
-  openId=id;
-  render();
+  openId=id;render();
 }
 
 // ── RENDER ─────────────────────────────────────────────────
@@ -158,7 +158,7 @@ function edHtml(c){
       +'<button class="btn b-sec" onclick="seekTo(\''+c.id+'\',\'out\')">⏭ Ir p/ Fim</button>'
     +'</div>'
     +'<div class="tl">'
-      +'<div class="tl-label">🟢 Início &nbsp;&nbsp;🔴 Fim — arraste as alças ou use os botões abaixo</div>'
+      +'<div class="tl-label">🟢 Início &nbsp;&nbsp;🔴 Fim — arraste as alças ou use os botões</div>'
       +'<div class="tl-bar" id="bar_'+c.id+'">'
         +'<div class="tl-sel" id="sel_'+c.id+'"></div>'
         +'<div class="tl-ph" id="ph_'+c.id+'" style="left:0%"></div>'
@@ -174,7 +174,7 @@ function edHtml(c){
       +'<button class="btn b-g" onclick="markIn(\''+c.id+'\')">🟢 Marcar INÍCIO</button>'
       +'<button class="btn b-r" onclick="markOut(\''+c.id+'\')">🔴 Marcar FIM</button>'
     +'</div>'
-    +'<div id="hint_'+c.id+'" class="info i-inf"><span>ℹ️</span><span>Dê play, posicione e clique INÍCIO / FIM para marcar o trecho a manter.</span></div>'
+    +'<div id="hint_'+c.id+'" class="info i-inf"><span>ℹ️</span><span>Dê play, posicione e clique INÍCIO / FIM para marcar o trecho.</span></div>'
     +'</div>';
 }
 
@@ -212,7 +212,6 @@ function bindEd(c){
   updTL(c);
 }
 
-// ── INTERACTIONS ───────────────────────────────────────────
 function toggle(id){openId=openId===id?null:id;render();}
 function mv(id,d){
   var i=clips.findIndex(function(c){return c.id===id;});
@@ -239,7 +238,6 @@ function markOut(id){
   updTL(c);
 }
 
-// ── DRAG ───────────────────────────────────────────────────
 document.addEventListener('mousemove',function(e){doDrag(e.clientX);});
 document.addEventListener('touchmove',function(e){if(drag){e.preventDefault();doDrag(e.touches[0].clientX);}},{passive:false});
 document.addEventListener('mouseup',function(){drag=null;});
@@ -258,62 +256,46 @@ function pct(bar,cx){
   var r=bar.getBoundingClientRect();
   return Math.max(0,Math.min(1,(cx-r.left)/r.width));
 }
-
-// ── TIMELINE ───────────────────────────────────────────────
 function updTL(c){
   if(!c.dur)return;
   var ip=(c.in/c.dur)*100,op=(c.out/c.dur)*100;
   function s(id,prop,val){var el=document.getElementById(id+c.id);if(el)el[prop]=val;}
-  s('hin_','style.left',ip+'%');
-  s('hout_','style.left',op+'%');
+  s('hin_','style.left',ip+'%');s('hout_','style.left',op+'%');
   var sel=document.getElementById('sel_'+c.id);
   if(sel){sel.style.left=ip+'%';sel.style.width=(op-ip)+'%';}
-  s('ti_','textContent',ft(c.in));
-  s('to_','textContent',ft(c.out));
+  s('ti_','textContent',ft(c.in));s('to_','textContent',ft(c.out));
   var dur=c.out-c.in;
   var hint=document.getElementById('hint_'+c.id);
-  if(hint&&dur>0.3){
-    hint.className='info i-ok';
-    hint.innerHTML='<span>✅</span><span>Trecho: <b>'+ft(c.in)+'</b> → <b>'+ft(c.out)+'</b> &nbsp;('+ft(dur)+')</span>';
-  }
+  if(hint&&dur>0.3){hint.className='info i-ok';hint.innerHTML='<span>✅</span><span>Trecho: <b>'+ft(c.in)+'</b> → <b>'+ft(c.out)+'</b> &nbsp;('+ft(dur)+')</span>';}
   var ct=document.getElementById('ct_'+c.id);
   if(ct)ct.textContent='⏱ '+ft(c.in)+' → '+ft(c.out)+' ('+ft(dur)+')';
 }
-
-// ── UTILS ──────────────────────────────────────────────────
-function ft(s){
-  if(!s||isNaN(s)||s<0)return '0:00';
-  return Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');
-}
+function ft(s){if(!s||isNaN(s)||s<0)return '0:00';return Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');}
 function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 
-// ── FFMPEG EXPORT ──────────────────────────────────────────
+// ── FFMPEG ─────────────────────────────────────────────────
 document.getElementById('btnExp').onclick=exportAll;
 
-async function loadFFmpeg(){
-  if(ffmpegReady)return;
-  setP(5,'Carregando FFmpeg (~30MB na primeira vez)...');
-  var FFmpegLib=window.FFmpegWASM||window['@ffmpeg/ffmpeg'];
-  var FFmpegUtilLib=window.FFmpegUtil||window['@ffmpeg/util'];
-  var FFmpeg=FFmpegLib.FFmpeg;
-  var toBlobURL=FFmpegUtilLib.toBlobURL;
-  ffmpegInst=new FFmpeg();
-  ffmpegInst.on('log',function(e){console.log('[ffmpeg]',e.message);});
-  ffmpegInst.on('progress',function(e){
-    if(e.progress>=0&&e.progress<=1)setP(30+e.progress*60,'Processando: '+Math.round(e.progress*100)+'%');
+async function initFFmpeg(){
+  if(ffReady)return;
+  setP(5,'Carregando FFmpeg (apenas na primeira vez)...');
+  var {createFFmpeg,fetchFile}=FFmpeg;
+  ff=createFFmpeg({
+    log:true,
+    corePath:'https://unpkg.com/@ffmpeg/core@0.10.0/dist/ffmpeg-core.js',
+    progress:function(p){
+      if(p.ratio>=0)setP(30+p.ratio*55,'Processando: '+Math.round(p.ratio*100)+'%');
+    }
   });
-  var base='https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/';
-  await ffmpegInst.load({
-    coreURL: await toBlobURL(base+'ffmpeg-core.js','text/javascript'),
-    wasmURL: await toBlobURL(base+'ffmpeg-core.wasm','application/wasm'),
-  });
-  ffmpegReady=true;
+  await ff.load();
+  ffReady=true;
+  window._ffetchFile=fetchFile; // salva referência
 }
 
 async function exportAll(){
   if(!clips.length){showExp('err','❌ Adicione pelo menos um vídeo.');return;}
   var bad=clips.filter(function(c){return c.dur<=0||(c.out-c.in)<0.3;});
-  if(bad.length){showExp('err','❌ Abra cada clipe e marque o trecho antes de exportar.');return;}
+  if(bad.length){showExp('err','❌ Abra cada clipe e marque o início e fim antes de exportar.');return;}
 
   document.getElementById('btnExp').disabled=true;
   document.getElementById('dlSection').classList.add('hidden');
@@ -321,81 +303,81 @@ async function exportAll(){
   showExp('','');
 
   try{
-    // 1. Load FFmpeg
-    await loadFFmpeg();
-    var ff=ffmpegInst;
-    var util=window.FFmpegUtil||window['@ffmpeg/util'];
-    var fetchFile=util.fetchFile;
+    await initFFmpeg();
+    var fetchFile=window._ffetchFile;
 
-    // 2. Detecta extensão de cada arquivo
-    setP(20,'Carregando vídeos...');
+    // 1. Escreve cada arquivo no sistema de arquivos virtual do FFmpeg
+    setP(15,'Carregando arquivos...');
     for(var i=0;i<clips.length;i++){
       var c=clips[i];
       var ext=c.file.name.split('.').pop().toLowerCase()||'mp4';
-      var inName='input'+i+'.'+ext;
-      setP(20+i/clips.length*10,'Carregando: '+c.name+'...');
-      await ff.writeFile(inName,await fetchFile(c.file));
-      c._inName=inName;
-      c._ext=ext;
+      var inName='raw'+i+'.'+ext;
+      setP(15+i/clips.length*10,'Carregando: '+c.name+'...');
+      ff.FS('writeFile',inName,await fetchFile(c.file));
+      c._raw=inName;
     }
 
-    // 3. Corta cada clipe → clipeN.mp4
-    setP(30,'Cortando clipes...');
+    // 2. Corta cada clipe → clip0.mp4, clip1.mp4 ...
     for(var i=0;i<clips.length;i++){
       var c=clips[i];
-      var outName='clip'+i+'.mp4';
-      setP(30+i/clips.length*30,'Cortando clipe '+(i+1)+'/'+clips.length+': '+c.name);
-      // -ss antes do -i é rápido (seek input) mas menos preciso;
-      // re-encode garante corte exato e compatibilidade no concat
-      await ff.exec([
-        '-ss', String(c.in.toFixed(3)),
-        '-to', String(c.out.toFixed(3)),
-        '-i', c._inName,
-        '-c:v','libx264','-preset','fast','-crf','23',
+      var out='clip'+i+'.mp4';
+      setP(25+i/clips.length*50,'Cortando clipe '+(i+1)+'/'+clips.length+': '+c.name+'...');
+      await ff.run(
+        '-ss',c.in.toFixed(3),
+        '-to',c.out.toFixed(3),
+        '-i',c._raw,
+        '-c:v','libx264','-preset','ultrafast','-crf','23',
         '-c:a','aac','-b:a','128k',
-        '-movflags','+faststart',
-        '-y',outName
-      ]);
-      c._outName=outName;
+        '-avoid_negative_ts','make_zero',
+        '-y',out
+      );
+      c._cut=out;
     }
 
-    // 4. Gera lista para concat demuxer
-    setP(85,'Juntando vídeos...');
-    var listTxt=clips.map(function(c){return "file '"+c._outName+"'";}).join('\n');
-    var enc=new TextEncoder();
-    await ff.writeFile('list.txt',enc.encode(listTxt));
+    // 3. Se só tem 1 clipe, não precisa concat
+    var finalFile;
+    if(clips.length===1){
+      finalFile=clips[0]._cut;
+    } else {
+      setP(80,'Juntando todos os clipes...');
+      // Cria lista para concat demuxer
+      var listTxt=clips.map(function(c){return "file '"+c._cut+"'";}).join('\n');
+      ff.FS('writeFile','list.txt',new TextEncoder().encode(listTxt));
+      await ff.run(
+        '-f','concat','-safe','0',
+        '-i','list.txt',
+        '-c','copy',
+        '-movflags','+faststart',
+        '-y','output.mp4'
+      );
+      finalFile='output.mp4';
+    }
 
-    await ff.exec([
-      '-f','concat','-safe','0',
-      '-i','list.txt',
-      '-c','copy',
-      '-movflags','+faststart',
-      '-y','output.mp4'
-    ]);
-
-    // 5. Lê resultado e oferece download
-    setP(98,'Finalizando...');
-    var data=await ff.readFile('output.mp4');
+    // 4. Lê resultado
+    setP(95,'Preparando download...');
+    var data=ff.FS('readFile',finalFile);
     var blob=new Blob([data.buffer],{type:'video/mp4'});
     var url=URL.createObjectURL(blob);
 
     document.getElementById('btnDl').onclick=function(){
-      var a=document.createElement('a');a.href=url;a.download='video-editado.mp4';a.click();
+      var a=document.createElement('a');a.href=url;a.download='video-editado.mp4';
+      document.body.appendChild(a);a.click();document.body.removeChild(a);
     };
     document.getElementById('dlSection').classList.remove('hidden');
     setP(100,'✅ Pronto!');
-    showExp('ok','✅ Vídeo pronto! Clique no botão verde para baixar o .mp4.');
+    showExp('ok','✅ Vídeo pronto! Clique no botão verde para baixar.');
 
-    // Limpa arquivos temporários do FFmpeg
-    for(var i=0;i<clips.length;i++){
-      try{await ff.deleteFile(clips[i]._inName);}catch(_){}
-      try{await ff.deleteFile(clips[i]._outName);}catch(_){}
-    }
-    try{await ff.deleteFile('list.txt');}catch(_){}
+    // Limpa FS
+    clips.forEach(function(c){
+      try{ff.FS('unlink',c._raw);}catch(_){}
+      try{ff.FS('unlink',c._cut);}catch(_){}
+    });
+    try{ff.FS('unlink','list.txt');}catch(_){}
+    try{ff.FS('unlink','output.mp4');}catch(_){}
 
   }catch(err){
-    console.error(err);
-    showExp('err','❌ Erro: '+err.message);
+    console.error('[export error]',err);
+    showExp('err','❌ Erro: '+err.message+'. Abra o Console para mais detalhes.');
     setP(0,'');
   }
   document.getElementById('btnExp').disabled=false;
