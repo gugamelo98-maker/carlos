@@ -1,9 +1,7 @@
 <title>Editor de Vídeo</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=swap" rel="stylesheet">
 
-<!-- Habilita SharedArrayBuffer em qualquer host HTTPS (necessário para FFmpeg.wasm) -->
-<script src="https://unpkg.com/coi-serviceworker@0.1.9/coi-serviceworker.min.js"></script>
-<!-- FFmpeg.wasm v0.10 – API estável, sem dependências extras -->
+<!-- FFmpeg.wasm v0.10 – API estável, single-thread, não precisa de SharedArrayBuffer -->
 <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.10.1/dist/ffmpeg.min.js"></script>
 
 <style>
