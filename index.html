@@ -275,24 +275,39 @@ function loadFile(file){
   clips.push(clip);
   renderClips();
 
-  // Get duration — robust for mobile
+  // Get duration — element must be in DOM to load on mobile
   const tmpVid = document.createElement('video');
   tmpVid.preload = 'metadata';
   tmpVid.muted = true;
-  tmpVid.playsInline = true;
+  tmpVid.setAttribute('playsinline','');
+  tmpVid.style.cssText='position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;top:-9999px';
+  document.body.appendChild(tmpVid);
+  let resolved = false;
   function onMeta(){
+    if(resolved) return;
     if(tmpVid.duration && isFinite(tmpVid.duration)){
+      resolved = true;
       clip.duration = tmpVid.duration;
       clip.outPoint = tmpVid.duration;
+      document.body.removeChild(tmpVid);
       renderClips();
     }
   }
-  tmpVid.onloadedmetadata = onMeta;
+  // Timeout fallback: use duration 0 but stop showing "Carregando"
+  const fallback = setTimeout(()=>{
+    if(!resolved){
+      resolved=true;
+      try{document.body.removeChild(tmpVid);}catch(e){}
+      clip.duration = -1; // sinaliza erro
+      renderClips();
+    }
+  }, 8000);
+  tmpVid.onloadedmetadata = ()=>{ clearTimeout(fallback); onMeta(); };
   tmpVid.ondurationchange = onMeta;
-  // iOS fallback: play briefly to force metadata
   tmpVid.onloadeddata = onMeta;
   tmpVid.src = url;
   tmpVid.load();
+  if(tmpVid.readyState >= 1) onMeta();
 }
 
 // ============================================================
@@ -321,7 +336,7 @@ function renderClips(){
         <div class="clip-info">
           <div class="clip-name">${clip.name}</div>
           <div class="clip-meta">
-            ${clip.duration?`⏱ ${fmt(clip.inPoint)} → ${fmt(clip.outPoint)} (${fmt(clip.outPoint-clip.inPoint)})`:'Carregando...'}
+            ${clip.duration>0?`⏱ ${fmt(clip.inPoint)} → ${fmt(clip.outPoint)} (${fmt(clip.outPoint-clip.inPoint)}) ✅`:clip.duration===-1?'⚠️ Toque para editar':'⏳ Carregando...'}
           </div>
         </div>
         <div class="clip-actions">
@@ -575,7 +590,7 @@ document.getElementById('btnExport').onclick = () => exportAll();
 
 async function exportAll(){
   if(!clips.length){ showExportAlert('error','❌ Adicione pelo menos um vídeo.'); return; }
-  const invalid=clips.filter(c=>!c.duration||(c.outPoint-c.inPoint)<0.3);
+  const invalid=clips.filter(c=>c.duration<=0||(c.outPoint-c.inPoint)<0.3);
   if(invalid.length){ showExportAlert('error','❌ Algum clipe ainda está carregando ou sem corte definido.'); return; }
 
   document.getElementById('btnExport').disabled=true;
