@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<title>VectCut Studio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap">
+
+<style>
+:root {
+  --bg:       #F7F8FC;
+  --surface:  #FFFFFF;
+  --border:   #D8DCE8;
+  --muted:    #7A82A0;
+  --fg:       #1A1D2E;
+  --primary:  #2D4EE0;
+  --primary-h:#1A39C2;
+  --accent:   #0EBBAA;
+  --danger:   #D93025;
+  --success:  #1E8A5E;
+  --radius:   16px;
+  --shadow:   0 4px 24px rgba(45,78,224,.10);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:#10121E;--surface:#1C2038;--border:#2E3355;--muted:#8890B0;--fg:#E8EAF6;
+    --primary:#5B7FFF;--primary-h:#7896FF;--accent:#14D4C0;--danger:#FF6B6B;--success:#3DD68C;
+    --shadow:0 4px 24px rgba(0,0,0,.40);color-scheme:dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg:#10121E;--surface:#1C2038;--border:#2E3355;--muted:#8890B0;--fg:#E8EAF6;
+  --primary:#5B7FFF;--primary-h:#7896FF;--accent:#14D4C0;--danger:#FF6B6B;--success:#3DD68C;
+  --shadow:0 4px 24px rgba(0,0,0,.40);color-scheme:dark;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font-family:'Nunito',system-ui,sans-serif;font-size:20px;line-height:1.55;
+  min-height:100vh;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:0;
+}
+.header{
+  background:var(--surface);border-bottom:2px solid var(--border);
+  padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  position:sticky;top:env(safe-area-inset-top,0px);z-index:10;
+}
+.logo{font-size:1.45rem;font-weight:800;color:var(--primary);letter-spacing:-.02em;display:flex;align-items:center;gap:10px}
+.logo-icon{background:var(--primary);color:#fff;border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:1.1rem}
+.theme-btn{background:var(--bg);border:2px solid var(--border);border-radius:50%;width:48px;height:48px;cursor:pointer;font-size:1.3rem;display:flex;align-items:center;justify-content:center;color:var(--fg);transition:background .2s}
+.theme-btn:hover{background:var(--border)}
+.main{max-width:680px;margin:0 auto;padding-block:32px}
+
+.progress-bar{display:flex;align-items:center;margin-bottom:36px}
+.step-item{display:flex;flex-direction:column;align-items:center;flex:1;position:relative}
+.step-item:not(:last-child)::after{content:'';position:absolute;top:22px;left:50%;width:100%;height:3px;background:var(--border);z-index:0;transition:background .3s}
+.step-item.done:not(:last-child)::after{background:var(--success)}
+.step-circle{width:44px;height:44px;border-radius:50%;border:3px solid var(--border);background:var(--surface);color:var(--muted);font-weight:800;font-size:1.1rem;display:flex;align-items:center;justify-content:center;position:relative;z-index:1;transition:all .25s}
+.step-item.active .step-circle{border-color:var(--primary);background:var(--primary);color:#fff;box-shadow:0 0 0 5px rgba(45,78,224,.18)}
+.step-item.done .step-circle{border-color:var(--success);background:var(--success);color:#fff}
+.step-label{font-size:.72rem;font-weight:700;color:var(--muted);margin-top:6px;text-align:center;text-transform:uppercase;letter-spacing:.06em}
+.step-item.active .step-label{color:var(--primary)}
+.step-item.done .step-label{color:var(--success)}
+
+.card{background:var(--surface);border-radius:var(--radius);border:2px solid var(--border);box-shadow:var(--shadow);padding:36px 32px;margin-bottom:24px}
+.card-title{font-size:1.6rem;font-weight:800;margin:0 0 6px;text-wrap:balance}
+.card-desc{color:var(--muted);font-size:1rem;margin:0 0 28px}
+
+.field{margin-bottom:24px}
+label{display:block;font-weight:700;font-size:1rem;margin-bottom:8px}
+.label-hint{font-weight:400;color:var(--muted);font-size:.88rem;display:block;margin-top:3px}
+input[type="text"],input[type="url"],input[type="number"],select,textarea{
+  width:100%;padding:16px 18px;font-family:inherit;font-size:1.1rem;font-weight:600;
+  background:var(--bg);color:var(--fg);border:2.5px solid var(--border);border-radius:12px;
+  outline:none;transition:border-color .2s,box-shadow .2s;appearance:none;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0 0 0 4px rgba(45,78,224,.14)}
+select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='8'%3E%3Cpath d='M1 1l6 6 6-6' stroke='%237A82A0' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 18px center;padding-right:48px}
+textarea{resize:vertical;min-height:100px}
+input[type="range"]{padding:0;border:none;background:none;box-shadow:none}
+input[type="range"]:focus{box-shadow:none}
+
+.res-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.res-card{border:2.5px solid var(--border);border-radius:12px;padding:18px 14px;cursor:pointer;text-align:center;transition:all .2s;background:var(--bg);user-select:none}
+.res-card:hover{border-color:var(--primary)}
+.res-card.selected{border-color:var(--primary);background:rgba(45,78,224,.07)}
+.res-icon{font-size:2rem;margin-bottom:6px}
+.res-name{font-weight:800;font-size:1rem}
+.res-size{color:var(--muted);font-size:.85rem}
+
+.btn{display:inline-flex;align-items:center;gap:10px;padding:17px 32px;border-radius:12px;font-family:inherit;font-size:1.1rem;font-weight:800;cursor:pointer;border:none;transition:all .18s;min-height:58px;white-space:nowrap}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-h);transform:translateY(-1px);box-shadow:0 6px 20px rgba(45,78,224,.3)}
+.btn-secondary{background:var(--bg);color:var(--fg);border:2.5px solid var(--border)}
+.btn-secondary:hover{border-color:var(--primary);color:var(--primary)}
+.btn-success{background:var(--success);color:#fff}
+.btn-accent{background:var(--accent);color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+.btn-full{width:100%;justify-content:center}
+.btn-lg{padding:22px 40px;font-size:1.25rem;min-height:70px}
+.actions{display:flex;gap:14px;flex-wrap:wrap;margin-top:20px}
+.actions .btn{flex:1;min-width:140px;justify-content:center}
+
+.alert{border-radius:12px;padding:18px 20px;font-size:1rem;font-weight:600;display:flex;align-items:flex-start;gap:14px;margin-top:20px}
+.alert-icon{font-size:1.5rem;flex-shrink:0}
+.alert-text{flex:1;min-width:0}
+.alert-success{background:rgba(30,138,94,.12);color:var(--success);border:2px solid var(--success)}
+.alert-error{background:rgba(217,48,37,.10);color:var(--danger);border:2px solid var(--danger)}
+[hidden]{display:none!important}
+
+.item-list{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.item-row{background:var(--bg);border:2px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px}
+.item-icon{font-size:1.4rem}
+.item-info{flex:1;min-width:0}
+.item-name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item-meta{color:var(--muted);font-size:.85rem}
+.item-remove{background:none;border:none;color:var(--danger);cursor:pointer;font-size:1.3rem;padding:4px 8px;border-radius:8px;line-height:1}
+.item-remove:hover{background:rgba(217,48,37,.12)}
+
+.summary-grid{display:flex;flex-direction:column;gap:14px}
+.summary-row{display:flex;gap:14px;align-items:center;padding:16px;background:var(--bg);border-radius:10px;border:2px solid var(--border)}
+.summary-emoji{font-size:1.8rem}
+.summary-label{color:var(--muted);font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.summary-value{font-weight:700;font-size:1rem;word-break:break-all}
+
+.spinner{width:22px;height:22px;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:500px){
+  .card{padding:24px 18px}
+  .card-title{font-size:1.3rem}
+  .btn-lg{font-size:1.1rem;padding:18px 24px}
+  .step-label{font-size:.62rem}
+  .header{padding:14px 18px}
+  .logo{font-size:1.15rem}
+}
+@media(max-width:340px){.res-grid{grid-template-columns:1fr}}
+</style>
+
+<header class="header">
+  <div class="logo"><div class="logo-icon">🎬</div>VectCut Studio</div>
+  <button class="theme-btn" id="themeBtn" title="Alternar tema" aria-label="Alternar tema">🌙</button>
+</header>
+
+<main class="main">
+
+  <nav class="progress-bar" id="progressBar" aria-label="Etapas">
+    <div class="step-item active"><div class="step-circle">1</div><span class="step-label">Projeto</span></div>
+    <div class="step-item"><div class="step-circle">2</div><span class="step-label">Mídia</span></div>
+    <div class="step-item"><div class="step-circle">3</div><span class="step-label">Texto</span></div>
+    <div class="step-item"><div class="step-circle">4</div><span class="step-label">Salvar</span></div>
+  </nav>
+
+  <!-- ETAPA 0 — Novo projeto -->
+  <section id="step-0" class="card">
+    <h1 class="card-title">📁 Novo projeto</h1>
+    <p class="card-desc">Escolha o formato do vídeo para começar.</p>
+    <div class="field">
+      <label>Formato do vídeo</label>
+      <div class="res-grid" role="radiogroup">
+        <div class="res-card selected" data-w="1080" data-h="1920" tabindex="0" role="radio" aria-checked="true">
+          <div class="res-icon">📱</div><div class="res-name">Vertical</div><div class="res-size">1080 × 1920</div>
+        </div>
+        <div class="res-card" data-w="1920" data-h="1080" tabindex="0" role="radio" aria-checked="false">
+          <div class="res-icon">🖥️</div><div class="res-name">Horizontal</div><div class="res-size">1920 × 1080</div>
+        </div>
+        <div class="res-card" data-w="1080" data-h="1080" tabindex="0" role="radio" aria-checked="false">
+          <div class="res-icon">⬜</div><div class="res-name">Quadrado</div><div class="res-size">1080 × 1080</div>
+        </div>
+        <div class="res-card" data-w="720" data-h="1280" tabindex="0" role="radio" aria-checked="false">
+          <div class="res-icon">📲</div><div class="res-name">Reel</div><div class="res-size">720 × 1280</div>
+        </div>
+      </div>
+    </div>
+    <div id="draftAlert" hidden></div>
+    <div class="actions">
+      <button class="btn btn-primary btn-lg btn-full" id="createDraftBtn">✨ Criar Projeto</button>
+    </div>
+  </section>
+
+  <!-- ETAPA 1 — Mídia -->
+  <section id="step-1" class="card" hidden>
+    <h1 class="card-title">🎥 Vídeo ou imagem</h1>
+    <p class="card-desc">Adicione quantos arquivos quiser antes de continuar.</p>
+    <div class="field">
+      <label>Tipo</label>
+      <select id="mediaType">
+        <option value="video">📹 Vídeo (MP4, MOV, AVI)</option>
+        <option value="image">🖼️ Imagem (JPG, PNG, GIF)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="mediaUrl">Link do arquivo
+        <span class="label-hint">Cole o endereço (URL) do vídeo ou imagem</span>
+      </label>
+      <input type="url" id="mediaUrl" placeholder="https://exemplo.com/video.mp4" spellcheck="false">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="field" style="margin-bottom:0"><label for="mediaStart">Início (segundos)</label><input type="number" id="mediaStart" value="0" min="0" step="0.5"></div>
+      <div class="field" style="margin-bottom:0"><label for="mediaEnd">Fim (segundos)</label><input type="number" id="mediaEnd" value="10" min="1" step="0.5"></div>
+    </div>
+    <div class="field" style="margin-top:20px" id="volumeField">
+      <label for="mediaVolume">Volume do áudio: <strong id="volLabel">80%</strong>
+        <span class="label-hint">0 = mudo · 100 = volume máximo</span>
+      </label>
+      <input type="range" id="mediaVolume" min="0" max="100" value="80" style="width:100%;height:10px;accent-color:var(--primary);cursor:pointer">
+    </div>
+    <div id="mediaList" class="item-list"></div>
+    <div id="mediaAlert" hidden></div>
+    <div class="actions">
+      <button class="btn btn-secondary" id="back1Btn">← Voltar</button>
+      <button class="btn btn-accent" id="addMediaBtn">+ Adicionar</button>
+      <button class="btn btn-primary" id="next2Btn">Próximo →</button>
+    </div>
+  </section>
+
+  <!-- ETAPA 2 — Texto -->
+  <section id="step-2" class="card" hidden>
+    <h1 class="card-title">✏️ Texto ou legenda</h1>
+    <p class="card-desc">Adicione textos e legendas ao seu vídeo.</p>
+    <div class="field">
+      <label>Tipo</label>
+      <select id="textType">
+        <option value="text">💬 Texto livre</option>
+        <option value="subtitle">📝 Legenda (SRT)</option>
+      </select>
+    </div>
+    <div id="textFields">
+      <div class="field">
+        <label for="textContent">Texto<span class="label-hint">O que vai aparecer no vídeo</span></label>
+        <textarea id="textContent" placeholder="Escreva o texto aqui..." rows="3"></textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="field" style="margin-bottom:0"><label for="textStart">Início (s)</label><input type="number" id="textStart" value="0" min="0" step="0.5"></div>
+        <div class="field" style="margin-bottom:0"><label for="textEnd">Fim (s)</label><input type="number" id="textEnd" value="5" min="1" step="0.5"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px">
+        <div class="field" style="margin-bottom:0">
+          <label for="fontSize">Tamanho da letra</label>
+          <select id="fontSize">
+            <option value="32">Pequeno (32)</option>
+            <option value="48" selected>Médio (48)</option>
+            <option value="64">Grande (64)</option>
+            <option value="80">Enorme (80)</option>
+          </select>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label for="fontColor">Cor</label>
+          <select id="fontColor">
+            <option value="#FFFFFF">⬜ Branco</option>
+            <option value="#FFD700">🟡 Dourado</option>
+            <option value="#FF6B6B">🔴 Vermelho</option>
+            <option value="#4ECDC4">🟩 Verde-água</option>
+            <option value="#000000">⬛ Preto</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div id="subtitleFields" hidden>
+      <div class="field">
+        <label for="srtContent">Conteúdo SRT<span class="label-hint">Cole aqui o texto do arquivo .srt</span></label>
+        <textarea id="srtContent" rows="7" style="font-family:monospace;font-size:.9rem" placeholder="1&#10;00:00:01,000 --> 00:00:04,000&#10;Olá, bem-vindo!"></textarea>
+      </div>
+    </div>
+    <div id="textList" class="item-list"></div>
+    <div id="textAlert" hidden></div>
+    <div class="actions">
+      <button class="btn btn-secondary" id="back2Btn">← Voltar</button>
+      <button class="btn btn-accent" id="addTextBtn">+ Adicionar</button>
+      <button class="btn btn-primary" id="next3Btn">Próximo →</button>
+    </div>
+  </section>
+
+  <!-- ETAPA 3 — Salvar -->
+  <section id="step-3" class="card" hidden>
+    <h1 class="card-title">💾 Salvar projeto</h1>
+    <p class="card-desc">Tudo certo! Confira o resumo e salve quando estiver pronto.</p>
+    <div class="summary-grid" id="summaryGrid"></div>
+    <div id="saveAlert" hidden></div>
+    <div class="actions">
+      <button class="btn btn-secondary" id="back3Btn">← Voltar</button>
+      <button class="btn btn-success btn-lg" id="saveBtn">💾 Salvar Projeto</button>
+    </div>
+    <div id="afterSave" hidden>
+      <div class="alert alert-success" style="margin-top:24px">
+        <span class="alert-icon">🎉</span>
+        <div class="alert-text"><strong>Projeto salvo com sucesso!</strong><br>Copie o ID abaixo para usar no CapCut ou Jianying.</div>
+      </div>
+      <div class="field" style="margin-top:16px">
+        <label>ID do rascunho</label>
+        <div style="display:flex;gap:10px;align-items:center">
+          <input type="text" id="draftIdDisplay" readonly style="font-family:monospace;font-size:.95rem;flex:1">
+          <button class="btn btn-secondary" id="copyBtn" style="flex-shrink:0;padding:16px 20px">📋 Copiar</button>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-full btn-lg" id="newProjectBtn" style="margin-top:8px">🎬 Novo Projeto</button>
+    </div>
+  </section>
+
+</main>
+
+<script>
+const N8N_BASE = 'https://rarelookingorca-n8n.cloudfy.live/webhook';
+const WEBHOOKS = {
+  createDraft: `${N8N_BASE}/vectcut-criar-projeto`,
+  addVideo:    `${N8N_BASE}/vectcut-add-video`,
+  addImage:    `${N8N_BASE}/vectcut-add-image`,
+  addText:     `${N8N_BASE}/vectcut-add-texto`,
+  saveDraft:   `${N8N_BASE}/vectcut-salvar`,
+};
+
+const state = { step:0, draftId:null, resolution:{w:1080,h:1920}, mediaItems:[], textItems:[] };
+
+// Tema
+const themeBtn = document.getElementById('themeBtn');
+function applyTheme(t){
+  document.documentElement.dataset.theme = t;
+  themeBtn.textContent = t==='dark'?'☀️':'🌙';
+  try{localStorage.setItem('vct-theme',t)}catch(e){}
+}
+try{const s=localStorage.getItem('vct-theme');if(s)applyTheme(s)}catch(e){}
+themeBtn.addEventListener('click',()=>applyTheme(document.documentElement.dataset.theme==='dark'?'light':'dark'));
+
+// Helpers
+function showAlert(id,type,msg){
+  const el=document.getElementById(id);el.hidden=false;
+  el.className=`alert alert-${type}`;
+  const icons={success:'✅',error:'❌',info:'ℹ️'};
+  el.innerHTML=`<span class="alert-icon">${icons[type]||'ℹ️'}</span><div class="alert-text">${msg}</div>`;
+}
+function hideAlert(id){document.getElementById(id).hidden=true}
+function setLoading(btn,on,label){btn.disabled=on;if(on)btn.innerHTML=`<span class="spinner"></span> ${label}`}
+async function callN8n(webhook,body){
+  const res=await fetch(webhook,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(30000)});
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok)throw new Error(data.message||data.detail||`Erro ${res.status}`);
+  return data;
+}
+
+// Navegação
+function goToStep(n){
+  for(let i=0;i<=3;i++)document.getElementById(`step-${i}`).hidden=i!==n;
+  document.querySelectorAll('.step-item').forEach((el,i)=>{
+    el.classList.remove('active','done');
+    if(i<n)el.classList.add('done');
+    else if(i===n)el.classList.add('active');
+    el.querySelector('.step-circle').textContent=i<n?'✓':i+1;
+  });
+  state.step=n;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ── ETAPA 0 ──────────────────────────────────────────────────
+document.querySelectorAll('.res-card').forEach(card=>{
+  card.addEventListener('click',()=>{
+    document.querySelectorAll('.res-card').forEach(c=>{c.classList.remove('selected');c.setAttribute('aria-checked','false')});
+    card.classList.add('selected');card.setAttribute('aria-checked','true');
+    state.resolution={w:+card.dataset.w,h:+card.dataset.h};
+  });
+  card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();card.click()}});
+});
+
+document.getElementById('createDraftBtn').addEventListener('click',async()=>{
+  const btn=document.getElementById('createDraftBtn');
+  setLoading(btn,true,'Criando...');hideAlert('draftAlert');
+  try{
+    const data=await callN8n(WEBHOOKS.createDraft,{width:state.resolution.w,height:state.resolution.h});
+    state.draftId=data.draft_id||data.id||data.result?.draft_id;
+    if(!state.draftId)throw new Error('Servidor não retornou o ID do projeto');
+    btn.disabled=false;btn.innerHTML='✨ Criar Projeto';
+    goToStep(1);
+  }catch(e){
+    btn.disabled=false;btn.innerHTML='✨ Criar Projeto';
+    showAlert('draftAlert','error',`Erro ao criar projeto: ${e.message}`);
+  }
+});
+
+// ── ETAPA 1 ──────────────────────────────────────────────────
+document.getElementById('mediaVolume').addEventListener('input',function(){document.getElementById('volLabel').textContent=this.value+'%'});
+document.getElementById('mediaType').addEventListener('change',function(){document.getElementById('volumeField').hidden=this.value==='image'});
+document.getElementById('back1Btn').addEventListener('click',()=>goToStep(0));
+
+document.getElementById('addMediaBtn').addEventListener('click',async()=>{
+  const btn=document.getElementById('addMediaBtn');
+  const url=document.getElementById('mediaUrl').value.trim();
+  const type=document.getElementById('mediaType').value;
+  const start=parseFloat(document.getElementById('mediaStart').value)||0;
+  const end=parseFloat(document.getElementById('mediaEnd').value)||10;
+  const volume=parseFloat(document.getElementById('mediaVolume').value)/100;
+  hideAlert('mediaAlert');
+  if(!url){showAlert('mediaAlert','error','Informe o link do arquivo.');return}
+  if(end<=start){showAlert('mediaAlert','error','O tempo de fim deve ser maior que o início.');return}
+  setLoading(btn,true,'Adicionando...');
+  try{
+    if(type==='video')await callN8n(WEBHOOKS.addVideo,{draft_id:state.draftId,video_url:url,start,end,volume});
+    else await callN8n(WEBHOOKS.addImage,{draft_id:state.draftId,image_url:url,start,end});
+    state.mediaItems.push({type,url,start,end});
+    document.getElementById('mediaUrl').value='';
+    renderMediaList();
+    showAlert('mediaAlert','success',`${type==='video'?'Vídeo':'Imagem'} adicionado com sucesso!`);
+    btn.disabled=false;btn.innerHTML='+ Adicionar';
+  }catch(e){
+    btn.disabled=false;btn.innerHTML='+ Adicionar';
+    showAlert('mediaAlert','error',`Erro: ${e.message}`);
+  }
+});
+
+function renderMediaList(){
+  const list=document.getElementById('mediaList');
+  if(!state.mediaItems.length){list.innerHTML='';return}
+  list.innerHTML=state.mediaItems.map((item,i)=>{
+    const short=item.url.length>42?item.url.slice(0,40)+'…':item.url;
+    return`<div class="item-row">
+      <span class="item-icon">${item.type==='video'?'📹':'🖼️'}</span>
+      <div class="item-info"><div class="item-name">${short}</div><div class="item-meta">${item.start}s → ${item.end}s</div></div>
+      <button class="item-remove" onclick="removeMedia(${i})" aria-label="Remover">🗑️</button>
+    </div>`;
+  }).join('');
+}
+window.removeMedia=i=>{state.mediaItems.splice(i,1);renderMediaList()};
+document.getElementById('next2Btn').addEventListener('click',()=>goToStep(2));
+
+// ── ETAPA 2 ──────────────────────────────────────────────────
+document.getElementById('textType').addEventListener('change',function(){
+  document.getElementById('textFields').hidden=this.value==='subtitle';
+  document.getElementById('subtitleFields').hidden=this.value!=='subtitle';
+});
+document.getElementById('back2Btn').addEventListener('click',()=>goToStep(1));
+
+document.getElementById('addTextBtn').addEventListener('click',async()=>{
+  const btn=document.getElementById('addTextBtn');
+  const type=document.getElementById('textType').value;
+  hideAlert('textAlert');setLoading(btn,true,'Adicionando...');
+  try{
+    let label;
+    if(type==='subtitle'){
+      const srt=document.getElementById('srtContent').value.trim();
+      if(!srt)throw new Error('Cole o conteúdo SRT no campo acima.');
+      await callN8n(WEBHOOKS.addText,{draft_id:state.draftId,type:'subtitle',srt_content:srt});
+      label='Legenda SRT';
+    }else{
+      const text=document.getElementById('textContent').value.trim();
+      if(!text)throw new Error('Escreva o texto no campo acima.');
+      const start=parseFloat(document.getElementById('textStart').value)||0;
+      const end=parseFloat(document.getElementById('textEnd').value)||5;
+      const font_size=parseInt(document.getElementById('fontSize').value);
+      const font_color=document.getElementById('fontColor').value;
+      await callN8n(WEBHOOKS.addText,{draft_id:state.draftId,type:'text',text,start,end,font_size,font_color});
+      label=text.length>32?text.slice(0,30)+'…':text;
+    }
+    state.textItems.push({type,label});
+    if(type!=='subtitle')document.getElementById('textContent').value='';
+    renderTextList();
+    showAlert('textAlert','success','Texto adicionado com sucesso!');
+    btn.disabled=false;btn.innerHTML='+ Adicionar';
+  }catch(e){
+    btn.disabled=false;btn.innerHTML='+ Adicionar';
+    showAlert('textAlert','error',`Erro: ${e.message}`);
+  }
+});
+
+function renderTextList(){
+  const list=document.getElementById('textList');
+  if(!state.textItems.length){list.innerHTML='';return}
+  list.innerHTML=state.textItems.map(item=>`
+    <div class="item-row">
+      <span class="item-icon">${item.type==='subtitle'?'📝':'💬'}</span>
+      <div class="item-info"><div class="item-name">${item.label}</div><div class="item-meta">${item.type==='subtitle'?'Legenda SRT':'Texto livre'}</div></div>
+    </div>`).join('');
+}
+document.getElementById('next3Btn').addEventListener('click',()=>{renderSummary();goToStep(3)});
+
+// ── ETAPA 3 ──────────────────────────────────────────────────
+function renderSummary(){
+  document.getElementById('summaryGrid').innerHTML=`
+    <div class="summary-row"><span class="summary-emoji">📐</span><div><div class="summary-label">Resolução</div><div class="summary-value">${state.resolution.w} × ${state.resolution.h}</div></div></div>
+    <div class="summary-row"><span class="summary-emoji">🎥</span><div><div class="summary-label">Vídeos / imagens</div><div class="summary-value">${state.mediaItems.length} item(s)</div></div></div>
+    <div class="summary-row"><span class="summary-emoji">✏️</span><div><div class="summary-label">Textos / legendas</div><div class="summary-value">${state.textItems.length} item(s)</div></div></div>
+    <div class="summary-row"><span class="summary-emoji">🔑</span><div><div class="summary-label">ID do projeto</div><div class="summary-value" style="font-family:monospace">${state.draftId}</div></div></div>
+  `;
+}
+document.getElementById('back3Btn').addEventListener('click',()=>goToStep(2));
+
+document.getElementById('saveBtn').addEventListener('click',async()=>{
+  const btn=document.getElementById('saveBtn');
+  setLoading(btn,true,'Salvando...');hideAlert('saveAlert');
+  document.getElementById('afterSave').hidden=true;
+  try{
+    await callN8n(WEBHOOKS.saveDraft,{draft_id:state.draftId});
+    btn.hidden=true;
+    document.getElementById('back3Btn').hidden=true;
+    document.getElementById('draftIdDisplay').value=state.draftId;
+    document.getElementById('afterSave').hidden=false;
+  }catch(e){
+    btn.disabled=false;btn.innerHTML='💾 Salvar Projeto';
+    showAlert('saveAlert','error',`Erro ao salvar: ${e.message}`);
+  }
+});
+
+document.getElementById('copyBtn').addEventListener('click',()=>{
+  const val=document.getElementById('draftIdDisplay').value;
+  navigator.clipboard.writeText(val).then(()=>{
+    const b=document.getElementById('copyBtn');
+    b.textContent='✅ Copiado!';
+    setTimeout(()=>b.innerHTML='📋 Copiar',2000);
+  }).catch(()=>document.getElementById('draftIdDisplay').select());
+});
+
+document.getElementById('newProjectBtn').addEventListener('click',()=>{
+  state.draftId=null;state.mediaItems=[];state.textItems=[];
+  ['mediaUrl','textContent','srtContent'].forEach(id=>document.getElementById(id).value='');
+  ['mediaList','textList'].forEach(id=>document.getElementById(id).innerHTML='');
+  document.getElementById('afterSave').hidden=true;
+  document.getElementById('saveBtn').hidden=false;
+  document.getElementById('back3Btn').hidden=false;
+  ['draftAlert','mediaAlert','textAlert','saveAlert'].forEach(hideAlert);
+  goToStep(0);
+});
+</script>
