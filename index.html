@@ -275,14 +275,24 @@ function loadFile(file){
   clips.push(clip);
   renderClips();
 
-  // Get duration
+  // Get duration — robust for mobile
   const tmpVid = document.createElement('video');
+  tmpVid.preload = 'metadata';
+  tmpVid.muted = true;
+  tmpVid.playsInline = true;
+  function onMeta(){
+    if(tmpVid.duration && isFinite(tmpVid.duration)){
+      clip.duration = tmpVid.duration;
+      clip.outPoint = tmpVid.duration;
+      renderClips();
+    }
+  }
+  tmpVid.onloadedmetadata = onMeta;
+  tmpVid.ondurationchange = onMeta;
+  // iOS fallback: play briefly to force metadata
+  tmpVid.onloadeddata = onMeta;
   tmpVid.src = url;
-  tmpVid.onloadedmetadata = () => {
-    clip.duration = tmpVid.duration;
-    clip.outPoint = tmpVid.duration;
-    renderClips();
-  };
+  tmpVid.load();
 }
 
 // ============================================================
@@ -438,11 +448,18 @@ function bindEditor(clip){
 
 function syncVideo(clip){
   const vid = document.getElementById(`vid_${clip.id}`);
-  if(vid && clip.duration===0){
-    vid.onloadedmetadata=()=>{
-      clip.duration=vid.duration; clip.outPoint=vid.duration; updateTL(clip);
-    };
+  if(!vid) return;
+  if(clip.duration > 0){ updateTL(clip); return; }
+  function tryGet(){
+    if(vid.duration && isFinite(vid.duration)){
+      clip.duration=vid.duration; clip.outPoint=vid.duration;
+      updateTL(clip); renderClips();
+    }
   }
+  vid.onloadedmetadata = tryGet;
+  vid.ondurationchange = tryGet;
+  vid.onloadeddata = tryGet;
+  if(vid.readyState >= 1) tryGet();
 }
 
 // ============================================================
